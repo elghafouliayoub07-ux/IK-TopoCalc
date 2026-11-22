@@ -1,0 +1,38 @@
+PASS: angle normalization and gon conversion
+PASS: polar forward and inverse coordinates
+PASS: slope distance reduction with vertical angle
+PASS: slope distance reduction with zenith angle
+PASS: two-ray intersection
+PASS: distance resection
+PASS: two-setup HI levelling and arithmetic check
+PASS: closed traverse Bowditch adjustment
+PASS: stakeout polar elements and orientation
+PASS: stadia distance and middle-wire check
+PASS: polygon area and perimeter
+PASS: TIN triangulation and linear elevation interpolation
+PASS: TIN contour segment generation
+PASS: longitudinal profile sampled from TIN
+PASS: earthwork average end area volumes
+PASS: breakline-constrained TIN includes every requested edge
+PASS: contour segments stitch into continuous polyline
+PASS: cross sections intersect design template and compute cut area
+PASS: surface-to-surface comparison computes cut fill and zero boundary
+PASS: DXF export contains points TIN faces contours and profile entities
+PASS: TIN handles a larger deterministic grid and preserves surface interpolation
+PASS: normalize360 folds tiny negatives and full turns to zero
+PASS: curvature and refraction correction is optional and sized correctly
+PASS: inclined stadia uses cos^2 and reduces to the level formula at alpha = 0
+PASS: levelling closure tolerance k*sqrt(L km)
+PASS: angular traverse closure: square loop with a 20-second error
+PASS: EPSG 9801 worked example: LCC 1SP Jamaica National Grid
+PASS: EPSG 9602 worked example: geographic <-> geocentric (WGS 84)
+PASS: EPSG 9606/9607 worked example: 7-parameter Helmert (WGS 72 -> WGS 84)
+PASS: Morocco Lambert zones: EPSG parameters, origins, round trips, zone choice
+PASS: Angle text parsing (decimal, DMS, hemispheres, comma)
+PASS: Traverse workflow: encadré with synthetic exact data, then with angle and distance errors
+PASS: Point CSV import: separators, decimal comma, header, order, duplicates, codes
+
+VERIFICATION RESULT: 34 test groups passed.
+RECORD TESTS OK
+APP ADAPTER TESTS OK
+COMMON HELPERS OK
