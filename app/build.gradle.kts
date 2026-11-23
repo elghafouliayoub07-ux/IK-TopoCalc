@@ -13,6 +13,7 @@ android {
         targetSdk = 35
         versionCode = 6
         versionName = "0.6.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     // Fixed debug key (committed on purpose): every CI build is signed with the same key,
     // so a new APK installs over the previous one without losing the saved projects.
@@ -50,5 +51,11 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
+    // Screenshot tour on an emulator (GitHub Actions); not part of the installed app.
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.12.01"))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:core-ktx:1.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
 }
