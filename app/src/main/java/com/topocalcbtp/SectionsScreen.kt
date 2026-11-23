@@ -121,7 +121,7 @@ fun SectionsScreen(modifier: Modifier, env: AppEnv, load: SavedCalculation?, onL
             val k = parseNum(swell)?.takeIf { it > 0 }
             ResultCard {
                 MonoText(buildString {
-                    appendLine(String.format(Locale.US, "%-11s %7s %10s %10s", t("Entre", "بين"), "d", t("Déblai", "حفر"), t("Remblai", "ردم")))
+                    appendLine(String.format(Locale.US, "%-11s %7s %10s %10s", "Profils", "d (m)", "Déblai", "Remblai"))
                     v.intervals.forEach {
                         appendLine(String.format(Locale.US, "%-11s %7.2f %10.2f %10.2f", "${it.from}-${it.to}".take(11), it.distance, it.volume.cut, it.volume.fill))
                     }

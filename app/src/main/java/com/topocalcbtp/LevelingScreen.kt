@@ -211,10 +211,10 @@ fun LevelingScreen(modifier: Modifier, env: AppEnv, load: SavedCalculation?, onL
                             color = if (s.middleReadingWithinTolerance) LocalAppColors.current.ok else MaterialTheme.colorScheme.error
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = { distance = fmt(s.estimatedDistanceMetres, 2) }) {
+                            TextButton(onClick = { distance = fmtPlain(s.estimatedDistanceMetres, 2) }) {
                                 Text(tr(french, "Utiliser comme portée", "استعملها كمسافة"))
                             }
-                            TextButton(onClick = { distance = fmt((parseNum(distance) ?: 0.0) + s.estimatedDistanceMetres, 2) }) {
+                            TextButton(onClick = { distance = fmtPlain((parseNum(distance) ?: 0.0) + s.estimatedDistanceMetres, 2) }) {
                                 Text(tr(french, "+ Ajouter à la portée", "+ أضفها للمسافة"))
                             }
                         }

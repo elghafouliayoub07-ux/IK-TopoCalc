@@ -20,17 +20,31 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.unit.LayoutDirection
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.Locale
 
 // ---------- numbers and text ----------
 
-/** Accepts both "1.850" and "1,850" (French / Arabic keyboards). */
-fun parseNum(text: String): Double? = text.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it.isFinite() }
+/** Accepts both "1.850" and "1,850" (French / Arabic keyboards); ignores invisible direction marks. */
+fun parseNum(text: String): Double? =
+    text.replace(Regex("[\u200E\u200F\u2066-\u2069\u202A-\u202E]"), "").trim().replace(',', '.').toDoubleOrNull()?.takeIf { it.isFinite() }
 
-/** Always formats with '.' and Latin digits, whatever the phone locale. */
-fun fmt(value: Double, decimals: Int = 3): String = "%.${decimals}f".format(Locale.US, value)
+/** Always formats with '.' and Latin digits, whatever the phone locale. For files, URIs and fields. */
+fun fmtPlain(value: Double, decimals: Int = 3): String = "%.${decimals}f".format(Locale.US, value)
+
+/**
+ * Number for display. The invisible left-to-right mark keeps the minus sign on the left of the
+ * number and the unit after it inside Arabic (right-to-left) text: "-4.0 mm", not "mm 4.0-".
+ */
+fun fmt(value: Double, decimals: Int = 3): String = "\u200E" + fmtPlain(value, decimals)
 
 /** Up to [maxDecimals] decimals, trailing zeros removed (for values written back into input fields). */
 fun fmtTrim(value: Double, maxDecimals: Int = 6): String =
@@ -115,7 +129,10 @@ fun Field(
         OutlinedTextField(
             value = value, onValueChange = onValue, modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            textStyle = LocalTextStyle.current.copy(fontSize = 16.sp),
+            // Numbers stay left-to-right in Arabic ("-0.5", not "0.5-"), still aligned to the right there.
+            textStyle = if (numeric) LocalTextStyle.current.copy(fontSize = 16.sp, textDirection = TextDirection.Ltr,
+                textAlign = if (LocalLayoutDirection.current == LayoutDirection.Rtl) TextAlign.End else TextAlign.Start)
+                else LocalTextStyle.current.copy(fontSize = 16.sp),
             shape = RoundedCornerShape(10.dp),
             keyboardOptions = KeyboardOptions(keyboardType = if (numeric) KeyboardType.Decimal else KeyboardType.Text),
             trailingIcon = signButton,
@@ -159,11 +176,13 @@ fun Hint(text: String) {
     Text(text, style = MaterialTheme.typography.bodySmall, color = LocalAppColors.current.muted)
 }
 
-/** A horizontally scrollable row of exclusive choices. */
+/** A horizontally scrollable row of exclusive choices; the selected one is scrolled into view. */
 @Composable
 fun ChoiceRow(labels: List<String>, selected: Int, onSelect: (Int) -> Unit) {
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        labels.forEachIndexed { i, label ->
+    val state = rememberLazyListState()
+    LaunchedEffect(selected) { if (selected in labels.indices) state.animateScrollToItem(maxOf(0, selected - 1)) }
+    LazyRow(state = state, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        itemsIndexed(labels) { i, label ->
             FilterChip(selected = i == selected, onClick = { onSelect(i) }, label = { Text(label) })
         }
     }

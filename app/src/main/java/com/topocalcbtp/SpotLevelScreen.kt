@@ -95,7 +95,7 @@ fun SpotLevelScreen(modifier: Modifier, env: AppEnv, load: SavedCalculation?, on
             var filled = 0
             rowsText = encodeRows(rows.map { r ->
                 val d = parseNum(r.getOrElse(3) { "" })
-                if (d == null) r else { filled++; listOf(r[0], r[1], fmt(SpotLevels.gradeLevels(z0, p, listOf(d))[0]), r[3]) }
+                if (d == null) r else { filled++; listOf(r[0], r[1], fmtPlain(SpotLevels.gradeLevels(z0, p, listOf(d))[0]), r[3]) }
             })
             result = null
             env.toast(if (filled == 0) t("Aucun point n'a de distance.", "حتى نقطة ما فيها مسافة.") else t("$filled cote(s) projet remplie(s)", "تعمرات $filled كوطة"))

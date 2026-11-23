@@ -66,7 +66,7 @@ fun ConversionScreen(modifier: Modifier, env: AppEnv) {
     }
 
     fun openMap(latitude: Double, longitude: Double, label: String) {
-        val uri = Uri.parse("geo:${fmt(latitude, 7)},${fmt(longitude, 7)}?q=${fmt(latitude, 7)},${fmt(longitude, 7)}(${Uri.encode(label)})")
+        val uri = Uri.parse("geo:${fmtPlain(latitude, 7)},${fmtPlain(longitude, 7)}?q=${fmtPlain(latitude, 7)},${fmtPlain(longitude, 7)}(${Uri.encode(label)})")
         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
             .onFailure { env.toast(env.t("Aucune application de carte trouvée.", "لا يوجد تطبيق خرائط.")) }
     }
@@ -80,8 +80,8 @@ fun ConversionScreen(modifier: Modifier, env: AppEnv) {
                 append("Nom;Latitude WGS84;Longitude WGS84;Z;Code\n")
                 env.points.forEach { p ->
                     val g = MoroccoCoordinates.lambertToWgs84(GridPoint(p.x, p.y), zone, transformationUsed)
-                    append("${p.name.replace(';', ',')};${fmt(g.latitudeDegrees, 8)};${fmt(g.longitudeDegrees, 8)};")
-                    append(p.z?.let { fmt(it) } ?: "").append(';').append(p.code.replace(';', ',')).append('\n')
+                    append("${p.name.replace(';', ',')};${fmtPlain(g.latitudeDegrees, 8)};${fmtPlain(g.longitudeDegrees, 8)};")
+                    append(p.z?.let { fmtPlain(it) } ?: "").append(';').append(p.code.replace(';', ',')).append('\n')
                 }
             }
             context.contentResolver.openOutputStream(uri)?.use { it.write(TextFiles.encodeForExcel(csv)) }

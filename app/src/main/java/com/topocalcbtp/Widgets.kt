@@ -24,6 +24,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.abs
@@ -117,13 +121,14 @@ fun RowsEditor(
     if (rows.isNotEmpty()) {
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-                Text(cols.joinToString("  ·  ") { it.label }, style = MaterialTheme.typography.labelSmall, color = LocalAppColors.current.muted,
-                    modifier = Modifier.padding(start = 4.dp, top = 4.dp))
+                Text(cols.joinToString("  ·  ") { it.label }, style = MaterialTheme.typography.labelSmall.copy(textDirection = TextDirection.Ltr),
+                    color = LocalAppColors.current.muted, modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 4.dp))
                 rows.forEachIndexed { i, r ->
                     Row(verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth().clickable { editing = i; inputText = encodeRows(listOf(r + List((cols.size - r.size).coerceAtLeast(0)) { "" })) }
                             .then(if (i == editing) Modifier.background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.25f), RoundedCornerShape(6.dp)) else Modifier)) {
-                        Text("${i + 1}. " + display(i, r), Modifier.weight(1f).padding(4.dp), fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+                        Text("${i + 1}. " + display(i, r), Modifier.weight(1f).padding(4.dp), fontFamily = FontFamily.Monospace, fontSize = 13.sp,
+                            style = LocalTextStyle.current.copy(textDirection = TextDirection.Ltr))
                         TextButton(onClick = {
                             onRowsText(encodeRows(rows.filterIndexed { j, _ -> j != i }))
                             if (editing == i) { editing = -1; inputText = encodeRows(listOf(defaults(rows))) } else if (editing > i) editing--
@@ -150,7 +155,7 @@ fun RowsEditor(
                     Hint(env.t("Une ligne par point, colonnes : ", "سطر لكل نقطة، الأعمدة: ") + cols.joinToString(" ; ") { it.label } +
                         env.t(". Séparateur : espace, tabulation ou « ; ».", ". الفاصل: فراغ، Tab أو « ; »."))
                     OutlinedTextField(pasteText, { pasteText = it; pasteError = null }, Modifier.fillMaxWidth().heightIn(min = 140.dp),
-                        textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, fontSize = 14.sp),
+                        textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, fontSize = 14.sp, textDirection = TextDirection.Ltr, textAlign = TextAlign.Left),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text))
                     ErrorText(pasteError)
                 }
@@ -200,10 +205,13 @@ fun ResultCard(content: @Composable ColumnScope.() -> Unit) {
     }
 }
 
-/** Monospace text block (tables). */
+/** Monospace table: always left-to-right, never wrapped (scrolls sideways when wider than the screen). */
 @Composable
 fun MonoText(text: String) {
-    Text(text, fontFamily = FontFamily.Monospace, fontSize = 12.5.sp, lineHeight = 17.sp)
+    Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+        Text(text, fontFamily = FontFamily.Monospace, fontSize = 12.5.sp, lineHeight = 17.sp, softWrap = false,
+            style = LocalTextStyle.current.copy(textDirection = TextDirection.Ltr, textAlign = TextAlign.Left))
+    }
 }
 
 /** Value with sign and "déblai / remblai" word. */
@@ -267,10 +275,10 @@ fun ProfileChart(env: AppEnv, x: List<Double>, ground: List<Double>, design: Lis
             drawRect(color = c.muted.copy(alpha = 0.4f), topLeft = Offset(padL, padT), size = androidx.compose.ui.geometry.Size(w, h), style = Stroke(1f))
             listOf(zMin, (zMin + zMax) / 2, zMax).forEach { v ->
                 drawLine(c.muted.copy(alpha = 0.2f), Offset(padL, py(v)), Offset(padL + w, py(v)))
-                drawContext.canvas.nativeCanvas.drawText(fmt(v, 2), 2.dp.toPx(), py(v) + 4.dp.toPx(), paint)
+                drawContext.canvas.nativeCanvas.drawText(fmtPlain(v, 2), 2.dp.toPx(), py(v) + 4.dp.toPx(), paint)
             }
-            drawContext.canvas.nativeCanvas.drawText(fmt(x0, 1), padL, size.height - 6.dp.toPx(), paint)
-            val endLabel = fmt(x1, 1) + " m"
+            drawContext.canvas.nativeCanvas.drawText(fmtPlain(x0, 1), padL, size.height - 6.dp.toPx(), paint)
+            val endLabel = fmtPlain(x1, 1) + " m"
             drawContext.canvas.nativeCanvas.drawText(endLabel, padL + w - paint.measureText(endLabel), size.height - 6.dp.toPx(), paint)
             // cut / fill areas
             if (design != null) {

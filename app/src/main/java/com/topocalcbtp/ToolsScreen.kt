@@ -121,7 +121,8 @@ private fun MeanTool(env: AppEnv) {
     SectionTitle(t("Moyenne de mesures répétées", "متوسط قياسات متكررة"))
     Hint(t("Une valeur par ligne (ou séparées par des espaces). Tolérance = 2,7 σ.", "قيمة فكل سطر (ولا مفرقين بفراغ). التسامح = 2.7 σ."))
     OutlinedTextField(text, { text = it }, Modifier.fillMaxWidth().heightIn(min = 120.dp),
-        textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, fontSize = 15.sp),
+        textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, fontSize = 15.sp,
+            textDirection = androidx.compose.ui.text.style.TextDirection.Ltr, textAlign = androidx.compose.ui.text.style.TextAlign.Left),
         placeholder = { Text("128.567\n128.572\n128.563", fontFamily = FontFamily.Monospace) },
         colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = LocalAppColors.current.fieldBackground, unfocusedContainerColor = LocalAppColors.current.fieldBackground,

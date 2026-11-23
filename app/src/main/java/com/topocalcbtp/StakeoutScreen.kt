@@ -86,9 +86,9 @@ fun StakeoutScreen(modifier: Modifier, env: AppEnv, load: SavedCalculation?, onL
         if (uri == null) return@rememberLauncherForActivityResult
         runCatching {
             val csv = buildString {
-                append("Station;${stationName.trim()};V0 ($u);${fmt(r.v0InUnit, 4)}\n")
+                append("Station;${stationName.trim()};V0 ($u);${fmtPlain(r.v0InUnit, 4)}\n")
                 append("Point;Hz ($u);Dh (m);dZ (m)\n")
-                r.rows.forEach { append("${it.name};${fmt(it.hzInUnit, 4)};${fmt(it.distance)};${it.deltaZ?.let { d -> fmt(d) } ?: ""}\n") }
+                r.rows.forEach { append("${it.name};${fmtPlain(it.hzInUnit, 4)};${fmtPlain(it.distance)};${it.deltaZ?.let { d -> fmtPlain(d) } ?: ""}\n") }
             }
             context.contentResolver.openOutputStream(uri)?.use { it.write(TextFiles.encodeForExcel(csv)) }
                 ?: throw java.io.IOException("Cannot open destination")

@@ -135,6 +135,18 @@ fun TopoCalcApp() {
         toast = { toast(it) }
     )
 
+    // While the keyboard is open, the bottom bar is hidden to leave room for the fields.
+    val rootView = LocalView.current
+    var keyboardOpen by remember { mutableStateOf(false) }
+    DisposableEffect(rootView) {
+        val listener = android.view.ViewTreeObserver.OnGlobalLayoutListener {
+            keyboardOpen = androidx.core.view.ViewCompat.getRootWindowInsets(rootView)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true
+        }
+        rootView.viewTreeObserver.addOnGlobalLayoutListener(listener)
+        onDispose { rootView.viewTreeObserver.removeOnGlobalLayoutListener(listener) }
+    }
+
     val labels = if (french) listOf("Niveau", "Théodolite", "Calculs", "Coord.", "Projet")
                  else listOf("نيفو", "تيودوليت", "حسابات", "إحداثيات", "المشروع")
 
@@ -187,7 +199,7 @@ fun TopoCalcApp() {
                         Box(Modifier.fillMaxWidth().height(3.dp).background(Brand.Yellow))
                     }
                 },
-                bottomBar = { IkBottomNav(labels, tab) { tab = it } }
+                bottomBar = { if (!keyboardOpen) IkBottomNav(labels, tab) { tab = it } }
             ) { padding ->
                 val m = Modifier.padding(padding)
                 fun consumeLoad() { pendingLoad = null }

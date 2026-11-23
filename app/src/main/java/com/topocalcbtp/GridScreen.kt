@@ -67,7 +67,8 @@ fun GridScreen(modifier: Modifier, env: AppEnv, load: SavedCalculation?, onLoade
             "الشبكة: سطر لكل صف، القيم مفرقة بفراغات؛ « - » = ما كايناش نقطة."))
         OutlinedTextField(
             gridText, { gridText = it; result = null }, Modifier.fillMaxWidth().heightIn(min = 150.dp),
-            textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, fontSize = 15.sp),
+            textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, fontSize = 15.sp,
+                textDirection = androidx.compose.ui.text.style.TextDirection.Ltr, textAlign = androidx.compose.ui.text.style.TextAlign.Left),
             placeholder = { Text(if (mode == 0) "251.20 251.05 250.90\n251.35 251.10 250.95" else "1.480 1.605 1.575\n1.450 1.382 1.475",
                 fontFamily = FontFamily.Monospace) },
             colors = OutlinedTextFieldDefaults.colors(

@@ -162,12 +162,17 @@ class ScreenshotTour {
             tap("المتوسط")
             rule.onAllNodes(hasSetTextAction()).onFirst()
                 .performTextInput("128.567\n128.572\n128.563\n128.568\n128.562\n128.575\n128.571\n128.565\n128.569\n128.574")
+            shot("14a_clavier")
+            inst.uiAutomation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+            Thread.sleep(800)
             scrollTo("حتى قياس", substring = true)
             shot("14_outils_moyenne")
             tap("Pente")
             val f = rule.onAllNodes(hasSetTextAction())
             f[0].performTextInput("33"); f[1].performTextInput("29"); f[2].performTextInput("7")
             rule.waitForIdle()
+            inst.uiAutomation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+            Thread.sleep(800)
             shot("15_outils_pente")
         }
 
