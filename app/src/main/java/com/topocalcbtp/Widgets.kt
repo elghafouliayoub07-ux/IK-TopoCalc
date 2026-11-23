@@ -247,7 +247,7 @@ private val DesignColor = Color(0xFFE53935)
  */
 @Composable
 fun ProfileChart(env: AppEnv, x: List<Double>, ground: List<Double>, design: List<Double>?, heightDp: Int = 210) {
-    if (x.size < 2) return
+    if (x.size < 2 || x.last() <= x.first() || (ground + (design ?: emptyList())).any { !it.isFinite() }) return
     val c = LocalAppColors.current
     val groundColor = MaterialTheme.colorScheme.onBackground
     val labelColor = c.muted.toArgb()
