@@ -2,9 +2,8 @@
 
 package com.topocalcbtp
 
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -14,10 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -25,10 +22,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.addPathNodes
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.abs
 
 /** IK TopoCalc brand colours (from the logo). */
 object Brand {
@@ -48,14 +48,16 @@ data class AppColors(
     val fieldText: Color,
     val fieldBorder: Color,
     val fieldFocus: Color,
-    /** Raised box of the active bottom tab and its content (light: navy/white, dark: white/navy). */
+    /** Sliding bubble of the active bottom tab and its content (light: black/white, dark: white/navy). */
     val navBox: Color,
-    val navContent: Color
+    val navContent: Color,
+    /** Bottom bar background (dark: dark grey, light: light grey). */
+    val navBar: Color
 )
 
 val LocalAppColors = staticCompositionLocalOf {
     AppColors(false, Color.White, Brand.Navy, Color(0xFF52606D), Color(0xFF1E7B4F), Color.White, Brand.Ink,
-        Color(0xFFD9E2EC), Brand.Navy, Brand.Navy, Color.White)
+        Color(0xFFD9E2EC), Brand.Navy, Color(0xFF111418), Color.White, Color(0xFFE4E7EC))
 }
 
 private val LightScheme = lightColorScheme(
@@ -88,9 +90,9 @@ private val DarkScheme = darkColorScheme(
 )
 
 private val LightApp = AppColors(false, Color.White, Brand.Navy, Color(0xFF52606D), Color(0xFF1E7B4F), Color.White, Brand.Ink,
-    Color(0xFFD9E2EC), Brand.Navy, Brand.Navy, Color.White)
+    Color(0xFFD9E2EC), Brand.Navy, Color(0xFF111418), Color.White, Color(0xFFE4E7EC))
 private val DarkApp = AppColors(true, Color(0xFF0B1120), Color(0xFF9DB2FF), Color(0xFF9AA6BF), Color(0xFF4FD18B), Color.White, Brand.Ink,
-    Color.White, Brand.Yellow, Color.White, Brand.Navy)
+    Color.White, Brand.Yellow, Color.White, Brand.Navy, Color(0xFF232937))
 
 @Composable
 fun IkTheme(dark: Boolean, content: @Composable () -> Unit) {
@@ -115,10 +117,14 @@ private fun strokeIcon(name: String, width: Float, vararg paths: String): ImageV
     }.build()
 
 object IkIcons {
+    /** Automatic level: eyepiece (left), telescope body with sight, wide objective (right), base, tripod. */
     val Level = strokeIcon("level", 1.8f,
-        "M5,7h10a1,1 0 0 1 1,1v3a1,1 0 0 1 -1,1h-10a1,1 0 0 1 -1,-1v-3a1,1 0 0 1 1,-1z",
-        "M16 9.5h4M10 12v3M6 21l4-6 4 6M10 15v6")
-    val Theodolite = strokeIcon("theodolite", 1.8f, circle(12f, 7f, 4f), "M12 3v8M8 7h8M12 11v3M7 22l5-8 5 8M12 14v8")
+        "M3 9.5h2.5V8H15V6.5h5v7h-5V12.5H5.5V11H3z", "M9 8V5.8h3.2V8",
+        "M8 15.5h8M12 12.5v3M12 15.5V22M12 15.5L8 22M12 15.5l4 6.5")
+    /** Theodolite: telescope tilted between the two standards of the alidade fork, tribrach, tripod. */
+    val Theodolite = strokeIcon("theodolite", 1.8f,
+        "M5 3v10h14V3", "M7.5 7.4L14.7 4l1.8 3.6-7.2 3.4z",
+        "M8.5 15.8h7M12 13v2.8M12 15.8V22M12 15.8L8.5 22M12 15.8l3.5 6.2")
     val Calc = strokeIcon("calc", 1.8f, "M4 18l5-9 6 5 5-9",
         circle(4f, 18f, 1.6f), circle(9f, 9f, 1.6f), circle(15f, 14f, 1.6f), circle(20f, 5f, 1.6f))
     val Coord = strokeIcon("coord", 1.8f, circle(12f, 12f, 9f), "M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18")
@@ -132,73 +138,55 @@ object IkIcons {
 // ---------- bottom navigation ----------
 
 /**
- * Equal, fixed-width tabs (opening a tab never moves the others). The active tab gets a raised box with
- * rounded top corners drawn behind it, its icon zooms in; only drawing and graphics-layer properties are
- * animated, so nothing is re-measured and the bar does not shake.
+ * Equal, fixed-width tabs. One circular bubble (drawn behind the tabs) slides to the selected tab with a
+ * slightly springy animation and rises a little above the bar; the active icon sits inside it. Only a float
+ * read in draw / graphicsLayer changes, nothing is re-measured, so the bar does not shake. In RTL tab 0 is on
+ * the right, so the bubble's visual index is mirrored.
  */
 @Composable
 fun IkBottomNav(labels: List<String>, selected: Int, onSelect: (Int) -> Unit) {
     val c = LocalAppColors.current
-    val barColor = MaterialTheme.colorScheme.surfaceContainer
-    Column(Modifier.fillMaxWidth().background(barColor)) {
+    val n = labels.size
+    val pos by animateFloatAsState(
+        selected.toFloat(), animationSpec = spring(dampingRatio = 0.72f, stiffness = 380f), label = "bubble"
+    )
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    Column(Modifier.fillMaxWidth().background(c.navBar)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-        Row(
-            Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 6.dp).height(62.dp),
-            verticalAlignment = Alignment.Bottom
-        ) {
-            labels.forEachIndexed { i, label ->
-                val progress by animateFloatAsState(
-                    if (i == selected) 1f else 0f, animationSpec = tween(320, easing = FastOutSlowInEasing), label = "tab$i"
-                )
-                val tint = lerp(c.muted, c.navContent, progress)
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .drawBehind {
-                            if (progress > 0f) {
-                                val extraTop = 26.dp.toPx()
-                                val side = 5.dp.toPx()
-                                val fullHeight = size.height + extraTop
-                                val h = fullHeight * (0.3f + 0.7f * progress)
-                                val r = 22.dp.toPx()
-                                val path = Path().apply {
-                                    addRoundRect(
-                                        RoundRect(
-                                            left = -side, top = size.height - h, right = size.width + side, bottom = size.height,
-                                            topLeftCornerRadius = CornerRadius(r, r), topRightCornerRadius = CornerRadius(r, r),
-                                            bottomLeftCornerRadius = CornerRadius.Zero, bottomRightCornerRadius = CornerRadius.Zero
-                                        )
-                                    )
-                                }
-                                drawPath(path, c.navBox.copy(alpha = progress))
-                            }
-                        }
-                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSelect(i) },
-                    contentAlignment = Alignment.BottomCenter
-                ) {
-                    Column(
-                        Modifier.padding(bottom = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+        Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 6.dp).height(62.dp)) {
+            Box(Modifier.matchParentSize().drawBehind {
+                val tabW = size.width / n
+                val visual = if (rtl) (n - 1) - pos else pos
+                drawCircle(c.navBox, radius = 25.dp.toPx(), center = Offset((visual + 0.5f) * tabW, 17.dp.toPx()))
+            })
+            Row(Modifier.matchParentSize()) {
+                labels.forEachIndexed { i, label ->
+                    val p = (1f - abs(pos - i)).coerceIn(0f, 1f)
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSelect(i) },
+                        contentAlignment = Alignment.BottomCenter
                     ) {
-                        Icon(
-                            IkIcons.Tabs[i], contentDescription = label, tint = tint,
-                            modifier = Modifier.size(24.dp).graphicsLayer {
-                                val s = 1f + 0.6f * progress
-                                scaleX = s; scaleY = s
-                                translationY = -14.dp.toPx() * progress
-                            }
-                        )
-                        Text(
-                            label, color = tint, fontSize = 11.5.sp, fontWeight = FontWeight.Bold, maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.graphicsLayer {
-                                val s = 1f + 0.08f * progress
-                                scaleX = s; scaleY = s
-                                translationY = -6.dp.toPx() * progress
-                            }
-                        )
+                        Column(
+                            Modifier.padding(bottom = 6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                IkIcons.Tabs[i], contentDescription = label, tint = lerp(c.muted, c.navContent, p),
+                                modifier = Modifier.size(24.dp).graphicsLayer {
+                                    val s = 1f + 0.1f * p
+                                    scaleX = s; scaleY = s
+                                    translationY = -7.dp.toPx() * p
+                                }
+                            )
+                            Text(
+                                label, color = lerp(c.muted, c.navBox, p), fontSize = 11.5.sp, fontWeight = FontWeight.Bold,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }
