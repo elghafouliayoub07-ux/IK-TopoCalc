@@ -42,8 +42,8 @@ fun GridScreen(modifier: Modifier, env: AppEnv, load: SavedCalculation?, onLoade
     }
 
     fun gridOf(values: List<List<Double?>>, digits: Int, signed: Boolean = false): String {
-        val f = if (signed) "%+9.${digits}f" else "%9.${digits}f"
-        return values.joinToString("\n") { row -> row.joinToString("") { v -> v?.let { String.format(Locale.US, f, it) } ?: "        -" } }
+        val f = if (signed) "%+8.${digits}f" else "%8.${digits}f"
+        return values.joinToString("\n") { row -> row.joinToString("") { v -> v?.let { String.format(Locale.US, f, it) } ?: "       -" } }
     }
 
     ScreenColumn(modifier) {

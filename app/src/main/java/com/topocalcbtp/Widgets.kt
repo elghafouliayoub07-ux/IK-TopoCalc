@@ -208,9 +208,12 @@ fun ResultCard(content: @Composable ColumnScope.() -> Unit) {
 /** Monospace table: always left-to-right, never wrapped (scrolls sideways when wider than the screen). */
 @Composable
 fun MonoText(text: String) {
-    Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-        Text(text, fontFamily = FontFamily.Monospace, fontSize = 12.5.sp, lineHeight = 17.sp, softWrap = false,
-            style = LocalTextStyle.current.copy(textDirection = TextDirection.Ltr, textAlign = TextAlign.Left))
+    // Left-to-right layout too, so that the first column is the one shown first in Arabic.
+    CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
+        Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+            Text(text, fontFamily = FontFamily.Monospace, fontSize = 12.5.sp, lineHeight = 17.sp, softWrap = false,
+                style = LocalTextStyle.current.copy(textDirection = TextDirection.Ltr, textAlign = TextAlign.Left))
+        }
     }
 }
 

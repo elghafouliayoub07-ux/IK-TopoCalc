@@ -167,13 +167,12 @@ class ScreenshotTour {
             Thread.sleep(800)
             scrollTo("حتى قياس", substring = true)
             shot("14_outils_moyenne")
-            tap("Pente")
+            tap("Interpolation")
             val f = rule.onAllNodes(hasSetTextAction())
-            f[0].performTextInput("33"); f[1].performTextInput("29"); f[2].performTextInput("7")
-            rule.waitForIdle()
+            f[0].performTextInput("150"); f[1].performTextInput("155"); f[2].performTextInput("20"); f[3].performTextInput("8")
             inst.uiAutomation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
             Thread.sleep(800)
-            shot("15_outils_pente")
+            shot("15_outils_interpolation")
         }
 
         step("sombre") {
