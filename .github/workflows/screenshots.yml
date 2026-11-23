@@ -2,7 +2,7 @@ name: Screenshots
 
 on:
   push:
-    branches: [ screenshots ]
+    branches: [ screenshots, 'arena-*' ]
   workflow_dispatch:
 
 permissions:
@@ -40,8 +40,10 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
-          disable-animations: true
+          disable-animations: ${{ !startsWith(github.ref_name, 'arena-') }}
           script: bash .github/scripts/shots.sh
+        env:
+          TOUR: ${{ startsWith(github.ref_name, 'arena-') && 'NavTour' || 'ScreenshotTour' }}
 
       - name: Publish screenshots (shots branch)
         env:
@@ -51,4 +53,6 @@ jobs:
           git init -q -b shots
           git add .
           git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "Screenshots ($GITHUB_SHA)"
-          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" shots
+          B=shots; case "$GITHUB_REF_NAME" in arena-*) B="shots-$GITHUB_REF_NAME";; esac
+          git branch -m "$B"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$B"

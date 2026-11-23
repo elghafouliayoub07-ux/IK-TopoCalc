@@ -27,6 +27,11 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.Locale
@@ -41,10 +46,19 @@ fun parseNum(text: String): Double? =
 fun fmtPlain(value: Double, decimals: Int = 3): String = "%.${decimals}f".format(Locale.US, value)
 
 /**
+ * Display precision chosen by the user (Projet → Affichage): 0 = standard (mm, 0.1 mgon...),
+ * 1 = one more decimal everywhere a result is shown. Calculations always use full double precision.
+ */
+object DisplayPrecision {
+    var extra by mutableIntStateOf(0)
+}
+
+/**
  * Number for display. The invisible left-to-right mark keeps the minus sign on the left of the
  * number and the unit after it inside Arabic (right-to-left) text: "-4.0 mm", not "mm 4.0-".
  */
-fun fmt(value: Double, decimals: Int = 3): String = "\u200E" + fmtPlain(value, decimals)
+fun fmt(value: Double, decimals: Int = 3): String =
+    "\u200E" + fmtPlain(value, if (decimals >= 1) decimals + DisplayPrecision.extra else decimals)
 
 /** Up to [maxDecimals] decimals, trailing zeros removed (for values written back into input fields). */
 fun fmtTrim(value: Double, maxDecimals: Int = 6): String =
@@ -122,6 +136,10 @@ fun Field(
         }
     } else null
     val c = LocalAppColors.current
+    val focus = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    // A number field shows a red border as soon as its content is not a number ("-" or "." alone are fine while typing).
+    val invalid = numeric && value.isNotBlank() && parseNum(value) == null && value.trim() !in setOf("-", ".", ",", "-.", "-,")
     // Label above the box (as in the HTML version): readable in both themes, never overlaps the white field.
     Column(modifier) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = c.muted, maxLines = 1,
@@ -134,7 +152,10 @@ fun Field(
                 textAlign = if (LocalLayoutDirection.current == LayoutDirection.Rtl) TextAlign.End else TextAlign.Start)
                 else LocalTextStyle.current.copy(fontSize = 16.sp),
             shape = RoundedCornerShape(10.dp),
-            keyboardOptions = KeyboardOptions(keyboardType = if (numeric) KeyboardType.Decimal else KeyboardType.Text),
+            // "Next" on the keyboard jumps to the following field; on the last one it closes the keyboard.
+            keyboardOptions = KeyboardOptions(keyboardType = if (numeric) KeyboardType.Decimal else KeyboardType.Text, imeAction = ImeAction.Next),
+            keyboardActions = KeyboardActions(onNext = { if (!focus.moveFocus(FocusDirection.Next)) keyboard?.hide() }),
+            isError = invalid,
             trailingIcon = signButton,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = c.fieldBackground, unfocusedContainerColor = c.fieldBackground,

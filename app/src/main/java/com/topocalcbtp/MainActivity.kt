@@ -64,6 +64,7 @@ fun TopoCalcApp() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val prefs = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }
+    remember { DisplayPrecision.extra = prefs.getInt("precision", 0).coerceIn(0, 1); 0 }
     val dao = remember { TopoDatabase.get(context).projectDao() }
     val projects by dao.observeAll().collectAsState(initial = emptyList())
     var tab by rememberSaveable { mutableIntStateOf(TAB_LEVEL) }

@@ -258,6 +258,15 @@ private fun BackupAndAbout(env: AppEnv, lastBackup: Long?, onExport: () -> Unit,
     val context = LocalContext.current
     val c = LocalAppColors.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+        SectionTitle(env.t("Affichage des résultats", "عرض النتائج"))
+        ChoiceRow(listOf(env.t("Standard (0.001)", "عادي (0.001)"), env.t("Haute précision (0.0001)", "دقة عالية (0.0001)")),
+            DisplayPrecision.extra.coerceIn(0, 1)) { choice ->
+            DisplayPrecision.extra = choice
+            context.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE).edit().putInt("precision", choice).apply()
+        }
+        Hint(env.t("Les calculs sont toujours faits en pleine précision ; ce choix ajoute une décimale à l'affichage (mm → 0,1 mm, mgon → 0,1 mgon).",
+            "الحسابات ديما كتدار بالدقة الكاملة؛ هاد الاختيار كيزيد رقم بعد الفاصلة فالعرض (mm ← 0.1 mm)."))
+        HorizontalDivider()
         SectionTitle(env.t("Sauvegarde", "النسخة الاحتياطية"))
         val days = lastBackup?.let { ((System.currentTimeMillis() - it) / 86_400_000L).toInt() }
         val fmtDate = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
