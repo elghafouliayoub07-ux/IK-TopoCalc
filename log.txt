@@ -1,0 +1,13 @@
+shot light_ar_0
+shot light_ar_4
+shot light_ar_1
+shot light_ar_2
+shot light_ar_3
+shot dark_ar_0
+shot dark_ar_4
+shot dark_ar_1
+shot dark_ar_2
+shot dark_ar_3
+shot light_fr_0
+shot light_fr_2
+shot dark_fr_4
