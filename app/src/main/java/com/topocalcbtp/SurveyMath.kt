@@ -12,7 +12,9 @@ data class LevelShot(
     val to: String,
     val backsight: Double,
     val foresight: Double,
-    val distanceMeters: Double = 1.0
+    val distanceMeters: Double = 1.0,
+    /** Intermediate sights (LI) taken from this station: point name + staff reading. */
+    val intermediates: List<Pair<String, Double>> = emptyList()
 ) {
     val observedDelta: Double get() = backsight - foresight
 }
@@ -24,6 +26,21 @@ data class CompensatedShot(
     val altitudeTo: Double
 )
 
+data class IntermediateResult(val shotIndex: Int, val name: String, val reading: Double, val altitude: Double)
+
+/** Tolerance formula: k·√L (L in km) or c·√N (N = number of stations). */
+enum class ToleranceMode { PER_SQRT_KM, PER_SQRT_SETUPS }
+
+/** Text form of a station's intermediate sights (stored in saved calculations). */
+object IntermediateCodec {
+    fun encode(list: List<Pair<String, Double>>): String = list.joinToString("\u001E") { it.first + "\u001F" + fmtTrim(it.second) }
+    fun decode(text: String): List<Pair<String, Double>> = if (text.isBlank()) emptyList() else text.split('\u001E').mapNotNull { item ->
+        val parts = item.split('\u001F')
+        val v = parts.getOrNull(1)?.let { parseNum(it) }
+        if (parts[0].isBlank() || v == null) null else parts[0] to v
+    }
+}
+
 data class ClosureResult(
     val startAltitude: Double,
     /** Calculated minus known end altitude; null for an open line (no known end altitude). */
@@ -34,7 +51,9 @@ data class ClosureResult(
     val sumForesights: Double,
     val calculatedEndAltitude: Double,
     /** Tolerance in metres, when a k value (mm/sqrt(km)) was supplied. */
-    val tolerance: Double?
+    val tolerance: Double?,
+    val intermediates: List<IntermediateResult> = emptyList(),
+    val method: LevelAdjustmentMethod = LevelAdjustmentMethod.PROPORTIONAL_TO_DISTANCE
 ) {
     /** ΣLA − ΣLV must equal (calculated end − start): classic field-book arithmetic check. */
     val arithmeticCheckOk: Boolean
@@ -55,7 +74,9 @@ object SurveyMath {
         startAltitude: Double,
         shots: List<LevelShot>,
         knownEndAltitude: Double?,
-        toleranceMmPerSqrtKm: Double? = null
+        toleranceMmPerSqrtKm: Double? = null,
+        toleranceMode: ToleranceMode = ToleranceMode.PER_SQRT_KM,
+        method: LevelAdjustmentMethod = LevelAdjustmentMethod.PROPORTIONAL_TO_DISTANCE
     ): ClosureResult {
         require(shots.isNotEmpty()) { "Add at least one leveling segment." }
         require(shots.all { it.distanceMeters > 0.0 }) { "Distances must be greater than zero." }
@@ -65,7 +86,8 @@ object SurveyMath {
         val setups = shots.map { shot ->
             LevelSetup(
                 backSight = StaffReading(shot.from, shot.backsight),
-                intermediateSights = emptyList(),
+                // LI points take the correction of the station's back point (position 0 in the setup).
+                intermediateSights = shot.intermediates.map { (name, reading) -> StaffReading(name, reading, 0.0) },
                 foreSight = StaffReading(shot.to, shot.foresight),
                 sectionLengthMetres = shot.distanceMeters
             )
@@ -75,8 +97,7 @@ object SurveyMath {
             startElevationMetres = startAltitude,
             setups = setups,
             knownEndElevationMetres = knownEndAltitude,
-            adjustment = if (knownEndAltitude != null) LevelAdjustmentMethod.PROPORTIONAL_TO_DISTANCE
-                         else LevelAdjustmentMethod.NONE
+            adjustment = if (knownEndAltitude != null) method else LevelAdjustmentMethod.NONE
         )
         val foresights = result.observations.filter { it.sightType == SightType.FORESIGHT }
         check(foresights.size == shots.size) { "Internal error: foresight count mismatch." }
@@ -88,10 +109,17 @@ object SurveyMath {
             previousCorrection = cumulative
             CompensatedShot(shot, segmentCorrection, shot.observedDelta + segmentCorrection, row.adjustedElevationMetres)
         }
-        val tolerance = toleranceMmPerSqrtKm?.let { Leveling.closureToleranceMetres(it, result.totalLengthMetres) }
+        val tolerance = toleranceMmPerSqrtKm?.let {
+            if (toleranceMode == ToleranceMode.PER_SQRT_SETUPS) Leveling.closureToleranceBySetupsMetres(it, shots.size)
+            else Leveling.closureToleranceMetres(it, result.totalLengthMetres)
+        }
+        val intermediates = result.observations.filter { it.sightType == SightType.INTERMEDIATE }.map {
+            IntermediateResult(it.setupNumber - 1, it.pointId, it.staffReadingMetres, it.adjustedElevationMetres)
+        }
         return ClosureResult(
             startAltitude, result.closureErrorMetres, result.totalLengthMetres, rows,
-            result.sumBacksightsMetres, result.sumForesightsMetres, result.calculatedEndElevationMetres, tolerance
+            result.sumBacksightsMetres, result.sumForesightsMetres, result.calculatedEndElevationMetres, tolerance,
+            intermediates, if (knownEndAltitude != null) method else LevelAdjustmentMethod.NONE
         )
     }
 

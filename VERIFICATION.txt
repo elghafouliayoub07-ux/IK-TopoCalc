@@ -32,7 +32,7 @@ PASS: Angle text parsing (decimal, DMS, hemispheres, comma)
 PASS: Traverse workflow: encadré with synthetic exact data, then with angle and distance errors
 PASS: Point CSV import: separators, decimal comma, header, order, duplicates, codes
 
-VERIFICATION RESULT: 34 test groups passed.
+VERIFICATION RESULT: 41 test groups passed.
 RECORD TESTS OK
 APP ADAPTER TESTS OK
 COMMON HELPERS OK

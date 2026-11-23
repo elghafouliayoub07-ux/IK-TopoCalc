@@ -11,6 +11,10 @@ object CalcType {
     const val THEODOLITE = "THEODOLITE"
     const val TRAVERSE = "TRAVERSE"
     const val STAKEOUT = "STAKEOUT"
+    const val SPOT_LEVELS = "SPOT_LEVELS"
+    const val LONG_PROFILE = "LONG_PROFILE"
+    const val SECTIONS = "SECTIONS"
+    const val GRID = "GRID"
 }
 
 /** Inputs of a screen, saved as text: named fields plus table rows. */

@@ -1,6 +1,6 @@
 # IK TopoCalc — Android + Topographic Engine
 
-**Application version:** 0.5.0 (see CHANGES_v0.5.md, CHANGES_v0.4.md, CHANGES_v0.3.md)  
+**Application version:** 0.6.0 (see CHANGES_v0.6.md, CHANGES_v0.5.md, CHANGES_v0.4.md, CHANGES_v0.3.md)  
 **Engine:** 0.5.0 (included as the `:topo-engine` Kotlin/JVM module)
 
 ## Architecture
@@ -36,7 +36,7 @@ CSV import: separators `;`, `,`, tab or spaces; decimal comma accepted (except w
 
 ## Verification
 
-`VERIFICATION.txt` — 34 engine test groups (incl. two-face CG/CD reduction), including the official IOGP/EPSG worked examples for Lambert Conic Conformal 1SP (method 9801), geographic↔geocentric (9602) and 7-parameter Helmert (9606/9607), traverse closure with injected errors, and CSV formats. App-level adapter tests (leveling compensation, Excel writer, saved-calculation codec, file encoding) also pass. The Compose UI source was type-checked against stubs of the Compose/Android APIs; the migration SQL was executed on SQLite.
+`VERIFICATION.txt` — 41 engine test groups (incl. two-face CG/CD and the OFPPT M07 course examples), including the official IOGP/EPSG worked examples for Lambert Conic Conformal 1SP (method 9801), geographic↔geocentric (9602) and 7-parameter Helmert (9606/9607), traverse closure with injected errors, and CSV formats. App-level adapter tests (leveling compensation, Excel writer, saved-calculation codec, file encoding) also pass. The Compose UI source was type-checked against stubs of the Compose/Android APIs; the migration SQL was executed on SQLite.
 
 ## Build in Android Studio
 

@@ -40,7 +40,11 @@ data class LevelSetup(
 
 enum class SightType { BACKSIGHT, INTERMEDIATE, FORESIGHT }
 
-enum class LevelAdjustmentMethod { NONE, PROPORTIONAL_TO_DISTANCE }
+/**
+ * How the closure error is distributed over the setups (stations):
+ * by route length, equally per setup (N), or proportionally to each setup's |ΔH|.
+ */
+enum class LevelAdjustmentMethod { NONE, PROPORTIONAL_TO_DISTANCE, EQUAL_PER_SETUP, PROPORTIONAL_TO_ABS_DELTA }
 
 data class LevelObservationResult(
     val setupNumber: Int,
@@ -127,10 +131,33 @@ object Leveling {
         val closure = knownEndElevationMetres?.let { calculatedEnd - it }
         val totalLength = chainageStart
 
-        val correctedRows = if (adjustment == LevelAdjustmentMethod.PROPORTIONAL_TO_DISTANCE && closure != null) {
-            require(totalLength > 0.0) { "Total levelling length must be positive for distance compensation" }
+        val correctedRows = if (adjustment != LevelAdjustmentMethod.NONE && closure != null) {
+            // Weight of each setup, then cumulative correction at the end of each setup.
+            val deltas = setups.map { it.backSight.readingMetres - it.foreSight.readingMetres }
+            var weights = when (adjustment) {
+                LevelAdjustmentMethod.PROPORTIONAL_TO_DISTANCE -> setups.map { it.sectionLengthMetres }
+                LevelAdjustmentMethod.EQUAL_PER_SETUP -> setups.map { 1.0 }
+                LevelAdjustmentMethod.PROPORTIONAL_TO_ABS_DELTA -> deltas.map { kotlin.math.abs(it) }
+                LevelAdjustmentMethod.NONE -> error("unreachable")
+            }
+            if (weights.sum() <= 0.0) weights = setups.map { 1.0 } // all ΔH = 0: equal shares
+            val total = weights.sum()
+            val endCorrection = DoubleArray(setups.size)
+            var acc = 0.0
+            weights.forEachIndexed { i, w -> acc += w; endCorrection[i] = -closure * acc / total }
             rawRows.map { row ->
-                val correction = -closure * (row.chainageMetres / totalLength)
+                val i = row.setupNumber - 1
+                val before = if (i == 0) 0.0 else endCorrection[i - 1]
+                val correction = when (row.sightType) {
+                    SightType.BACKSIGHT -> before
+                    SightType.FORESIGHT -> endCorrection[i]
+                    // Intermediate sights: share of the setup correction by position inside the setup.
+                    SightType.INTERMEDIATE -> {
+                        val setupStart = rawRows.first { it.setupNumber == row.setupNumber && it.sightType == SightType.BACKSIGHT }.chainageMetres
+                        val f = ((row.chainageMetres - setupStart) / setups[i].sectionLengthMetres).coerceIn(0.0, 1.0)
+                        before + f * (endCorrection[i] - before)
+                    }
+                }
                 row.copy(adjustedElevationMetres = row.rawElevationMetres + correction)
             }
         } else rawRows
@@ -150,5 +177,15 @@ object Leveling {
         requirePositive("millimetresPerSqrtKm", millimetresPerSqrtKm)
         requirePositive("routeLengthMetres", routeLengthMetres)
         return millimetresPerSqrtKm * kotlin.math.sqrt(routeLengthMetres / 1000.0) / 1000.0
+    }
+
+    /**
+     * Site-levelling tolerance T = c * sqrt(N), N = number of setups (dénivelées), c in millimetres
+     * (OFPPT course: c = 4.6 mm for an ordinary site level). Returned in metres.
+     */
+    fun closureToleranceBySetupsMetres(millimetresPerSqrtSetup: Double, setupCount: Int): Double {
+        requirePositive("millimetresPerSqrtSetup", millimetresPerSqrtSetup)
+        require(setupCount > 0) { "setupCount must be > 0" }
+        return millimetresPerSqrtSetup * kotlin.math.sqrt(setupCount.toDouble()) / 1000.0
     }
 }

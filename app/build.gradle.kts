@@ -11,8 +11,8 @@ android {
         applicationId = "com.topocalcbtp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.5.0"
+        versionCode = 6
+        versionName = "0.6.0"
     }
     // Fixed debug key (committed on purpose): every CI build is signed with the same key,
     // so a new APK installs over the previous one without losing the saved projects.

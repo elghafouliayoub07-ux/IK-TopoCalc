@@ -16,4 +16,4 @@
 
 ## تجربة المحرك بوحدو (اختياري)
 فـ Terminal ديال Android Studio:
-`gradlew :topo-engine:verifyEngine`  ← خاص يطلع `34 test groups passed`.
+`gradlew :topo-engine:verifyEngine`  ← خاص يطلع `41 test groups passed`.

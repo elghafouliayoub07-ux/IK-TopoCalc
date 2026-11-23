@@ -51,6 +51,13 @@ private const val TAB_PROJECT = 4
 private const val SUB_RAYONNEMENT = 0
 private const val SUB_CHEMINEMENT = 1
 private const val SUB_IMPLANTATION = 2
+private const val SUB_LONG_PROFILE = 3
+private const val SUB_SECTIONS = 4
+private const val SUB_GRID = 5
+private const val SUB_TOOLS = 6
+
+private const val LEVEL_TRAVERSE = 0
+private const val LEVEL_SPOT = 1
 
 @Composable
 fun TopoCalcApp() {
@@ -61,6 +68,7 @@ fun TopoCalcApp() {
     val projects by dao.observeAll().collectAsState(initial = emptyList())
     var tab by rememberSaveable { mutableIntStateOf(TAB_LEVEL) }
     var calcSub by rememberSaveable { mutableIntStateOf(SUB_RAYONNEMENT) }
+    var levelSub by rememberSaveable { mutableIntStateOf(LEVEL_TRAVERSE) }
     var french by remember { mutableStateOf(prefs.getBoolean("french", false)) }
     var unit by remember {
         mutableStateOf(runCatching { AngleUnit.valueOf(prefs.getString("unit", null) ?: "DEGREES") }
@@ -81,6 +89,7 @@ fun TopoCalcApp() {
     var pendingLoad by remember { mutableStateOf<SavedCalculation?>(null) }
     val stateHolder = rememberSaveableStateHolder()
     val calcStateHolder = rememberSaveableStateHolder()
+    val levelStateHolder = rememberSaveableStateHolder()
 
     fun toast(message: String) = Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     fun setActive(id: Long?) {
@@ -184,13 +193,29 @@ fun TopoCalcApp() {
                 fun consumeLoad() { pendingLoad = null }
                 stateHolder.SaveableStateProvider("tab$tab") {
                     when (tab) {
-                        TAB_LEVEL -> LevelingScreen(m, env, pendingLoad, ::consumeLoad)
+                        TAB_LEVEL -> Column(m.fillMaxSize()) {
+                            Box(Modifier.background(MaterialTheme.colorScheme.background).padding(horizontal = 12.dp, vertical = 6.dp)) {
+                                ChoiceRow(
+                                    listOf(tr(french, "Cheminement", "Cheminement"), tr(french, "Rayonnement & implantation", "Rayonnement و implantation")),
+                                    levelSub
+                                ) { levelSub = it }
+                            }
+                            val sub = Modifier.weight(1f)
+                            levelStateHolder.SaveableStateProvider("level$levelSub") {
+                                when (levelSub) {
+                                    LEVEL_SPOT -> SpotLevelScreen(sub, env, pendingLoad, ::consumeLoad)
+                                    else -> LevelingScreen(sub, env, pendingLoad, ::consumeLoad)
+                                }
+                            }
+                        }
                         TAB_THEODOLITE -> TheodoliteScreen(m, env, pendingLoad, ::consumeLoad)
                         TAB_CALC -> Column(m.fillMaxSize()) {
                             Box(Modifier.background(MaterialTheme.colorScheme.background).padding(horizontal = 12.dp, vertical = 6.dp)) {
                                 ChoiceRow(
                                     listOf(tr(french, "Rayonnement", "Rayonnement"), tr(french, "Cheminement", "Cheminement"),
-                                        tr(french, "Implantation", "Implantation")),
+                                        tr(french, "Implantation", "Implantation"), tr(french, "Profil en long", "Profil en long"),
+                                        tr(french, "Cubature profils", "Cubature profils"), tr(french, "Quadrillage", "Quadrillage"),
+                                        tr(french, "Outils", "أدوات")),
                                     calcSub
                                 ) { calcSub = it }
                             }
@@ -199,6 +224,10 @@ fun TopoCalcApp() {
                                 when (calcSub) {
                                     SUB_RAYONNEMENT -> TopometryScreen(sub, env)
                                     SUB_CHEMINEMENT -> TraverseScreen(sub, env, pendingLoad, ::consumeLoad)
+                                    SUB_LONG_PROFILE -> LongProfileScreen(sub, env, pendingLoad, ::consumeLoad)
+                                    SUB_SECTIONS -> SectionsScreen(sub, env, pendingLoad, ::consumeLoad)
+                                    SUB_GRID -> GridScreen(sub, env, pendingLoad, ::consumeLoad)
+                                    SUB_TOOLS -> ToolsScreen(sub, env)
                                     else -> StakeoutScreen(sub, env, pendingLoad, ::consumeLoad)
                                 }
                             }
@@ -220,7 +249,11 @@ fun TopoCalcApp() {
                             onOpenCalculation = { c ->
                                 pendingLoad = c
                                 when (c.type) {
-                                    CalcType.LEVELING -> tab = TAB_LEVEL
+                                    CalcType.LEVELING -> { levelSub = LEVEL_TRAVERSE; tab = TAB_LEVEL }
+                                    CalcType.SPOT_LEVELS -> { levelSub = LEVEL_SPOT; tab = TAB_LEVEL }
+                                    CalcType.LONG_PROFILE -> { calcSub = SUB_LONG_PROFILE; tab = TAB_CALC }
+                                    CalcType.SECTIONS -> { calcSub = SUB_SECTIONS; tab = TAB_CALC }
+                                    CalcType.GRID -> { calcSub = SUB_GRID; tab = TAB_CALC }
                                     CalcType.THEODOLITE -> tab = TAB_THEODOLITE
                                     CalcType.TRAVERSE -> { calcSub = SUB_CHEMINEMENT; tab = TAB_CALC }
                                     CalcType.STAKEOUT -> { calcSub = SUB_IMPLANTATION; tab = TAB_CALC }

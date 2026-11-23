@@ -20,6 +20,7 @@ import com.topocalcbtp.engine.projection.*
 import com.topocalcbtp.engine.angles.AngleText
 import com.topocalcbtp.engine.angles.TwoFace
 import com.topocalcbtp.engine.io.*
+import com.topocalcbtp.engine.worksite.*
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -500,6 +501,107 @@ fun main() {
         val z = TwoFace.zenith(95.0, 265.01)
         near(z.indexErrorDegrees, 0.005, 1e-9, "index"); near(z.correctedZenithDegrees, 94.995, 1e-9, "Zc")
         near(TwoFace.zenith(95.0, 265.0).correctedZenithDegrees, 95.0, 1e-12, "perfect")
+    }
+
+    test("Levelling compensation: by distance, equally per setup (N), by |ΔH|; tolerance 4.6√N") {
+        fun setups(withIntermediate: Boolean) = listOf(
+            LevelSetup(StaffReading("A", 1.5), emptyList(), StaffReading("1", 1.0), 100.0),
+            LevelSetup(StaffReading("1", 1.2), if (withIntermediate) listOf(StaffReading("I", 1.7, 25.0)) else emptyList(), StaffReading("2", 2.2), 50.0),
+            LevelSetup(StaffReading("2", 1.0), emptyList(), StaffReading("B", 0.5), 50.0)
+        )
+        fun fore(r: LevelingResult, id: String) = r.observations.first { it.pointId == id && it.sightType == SightType.FORESIGHT }.adjustedElevationMetres
+        val eq = Leveling.compute("A", 100.0, setups(true), 99.994, LevelAdjustmentMethod.EQUAL_PER_SETUP)
+        near(eq.closureErrorMetres!!, 0.006, 1e-12, "closure")
+        near(fore(eq, "1"), 100.498, 1e-9, "N p1"); near(fore(eq, "2"), 99.496, 1e-9, "N p2"); near(fore(eq, "B"), 99.994, 1e-9, "N B")
+        near(eq.observations.first { it.pointId == "I" }.adjustedElevationMetres, 99.997, 1e-9, "N intermediate")
+        val ab = Leveling.compute("A", 100.0, setups(false), 99.994, LevelAdjustmentMethod.PROPORTIONAL_TO_ABS_DELTA)
+        near(fore(ab, "1"), 100.4985, 1e-9, "|dH| p1"); near(fore(ab, "2"), 99.4955, 1e-9, "|dH| p2"); near(fore(ab, "B"), 99.994, 1e-9, "|dH| B")
+        val di = Leveling.compute("A", 100.0, setups(true), 99.994, LevelAdjustmentMethod.PROPORTIONAL_TO_DISTANCE)
+        near(fore(di, "1"), 100.497, 1e-9, "dist p1"); near(fore(di, "2"), 99.4955, 1e-9, "dist p2")
+        near(di.observations.first { it.pointId == "I" }.adjustedElevationMetres, 100.0 - 0.006 * 125.0 / 200.0, 1e-9, "dist intermediate")
+        near(Leveling.closureToleranceBySetupsMetres(4.6, 4), 0.0092, 1e-12, "4.6√4")
+    }
+
+    test("Cross-section areas (OFPPT M07 profil P1 = 64.40 m²), mixed cut/fill, average end areas") {
+        val partial = listOf(0.0, 3.50, 4.90, 5.40, 4.40, 4.80, 3.00, 3.00, 0.70, 2.30)
+        val x = partial.runningReduce { a, b -> a + b }
+        val h = listOf(3.70, 3.20, 2.20, 1.20, 0.20, 1.20, 2.20, 3.20, 3.20, 3.79)
+        val a = CrossSections.areas(x, h)
+        near(a.cut, 64.4035, 1e-9, "S1"); near(a.fill, 0.0, 1e-12, "no fill")
+        val m = CrossSections.areas(listOf(0.0, 10.0), listOf(1.0, -1.0))
+        near(m.cut, 2.5, 1e-12, "mixed cut"); near(m.fill, 2.5, 1e-12, "mixed fill")
+        near(CutFillIntegration.zeroCrossings(listOf(0.0, 10.0), listOf(1.0, -3.0)).single(), 2.5, 1e-12, "crossing")
+        val v = CrossSections.averageEndArea(listOf(SectionAreas("A", 0.0, 10.0, 0.0), SectionAreas("B", 20.0, 30.0, 4.0), SectionAreas("C", 50.0, 0.0, 10.0)))
+        near(v.intervals[0].volume.cut, 400.0, 1e-9, "AB cut"); near(v.intervals[0].volume.fill, 40.0, 1e-9, "AB fill")
+        near(v.total.cut, 850.0, 1e-9, "total cut"); near(v.total.fill, 250.0, 1e-9, "total fill")
+    }
+
+    test("Long profile: design grade, heights, points de passage, slopes, areas") {
+        val st = listOf(ProfileStation("P0", 0.0, 101.0), ProfileStation("P1", 20.0, 100.0), ProfileStation("P2", 40.0, 99.0))
+        val r = LongProfile.compute(st, LongProfile.singleGrade(0.0, 100.5, -1.0, 40.0))
+        near(r.rows[1].designZ, 100.3, 1e-12, "design P1"); near(r.rows[2].height, -1.1, 1e-12, "h P2")
+        near(r.rows[1].groundSlopePercent!!, -5.0, 1e-12, "TN slope"); near(r.rows[2].designSlopePercent!!, -1.0, 1e-12, "design slope")
+        near(r.crossings.single().first, 12.5, 1e-12, "crossing PK"); near(r.crossings.single().second, 100.375, 1e-12, "crossing Z")
+        near(r.area.cut, 3.125, 1e-12, "cut area"); near(r.area.fill, 15.125, 1e-12, "fill area")
+        val breaks = listOf(GradeBreak(0.0, 100.5), GradeBreak(20.0, 100.5), GradeBreak(40.0, 99.5))
+        near(LongProfile.designAt(breaks, 60.0), 98.5, 1e-12, "extrapolated design")
+        near(LongProfile.designAt(breaks, 30.0), 100.0, 1e-12, "design in 2nd grade")
+        val r2 = LongProfile.compute(st, breaks) // break at 20 between stations is exact
+        near(r2.area.cut, 0.5 / 2 * (20 * 0.5 / 1.0), 1e-12, "cut with break")
+    }
+
+    test("Grid volume (plans cotés): full cut, transition cell, holes, balance level, parsing") {
+        val full = GridVolume.compute(List(3) { List<Double?>(3) { 101.0 } }, 10.0, 10.0, 100.0)
+        near(full.volume.cut, 400.0, 1e-9, "full cut"); near(full.area, 400.0, 1e-9, "area")
+        val mixed = GridVolume.compute(listOf(listOf(101.0, 99.0), listOf(101.0, 99.0)), 10.0, 10.0, 100.0)
+        near(mixed.volume.cut, 25.0, 1e-9, "transition cut"); near(mixed.volume.fill, 25.0, 1e-9, "transition fill")
+        near(mixed.balanceLevel, 100.0, 1e-12, "balance")
+        near(GridVolume.compute(listOf(listOf(102.0, 100.0), listOf(100.0, 100.0)), 10.0, 10.0, 100.0).volume.cut, 50.0, 1e-9, "one corner")
+        val holed = GridVolume.compute(listOf(listOf(1.0, 1.0, 1.0), listOf(1.0, 1.0, null)), 1.0, 1.0, 0.0)
+        check(holed.cells.size == 1); near(holed.volume.cut, 1.0, 1e-12, "holed")
+        val g = GridVolume.parse("101 99,5 -\n101;99;100\n")
+        check(g == listOf(listOf(101.0, 99.5, null), listOf(101.0, 99.0, 100.0))) { g.toString() }
+        val b = GridVolume.compute(listOf(listOf(10.0, 12.0, 11.0), listOf(9.0, 13.0, 10.0)), 5.0, 4.0, 0.0).balanceLevel
+        val atBalance = GridVolume.compute(listOf(listOf(10.0, 12.0, 11.0), listOf(9.0, 13.0, 10.0)), 5.0, 4.0, b)
+        near(atBalance.volume.net, 0.0, 1e-9, "net zero at balance level")
+    }
+
+    test("Spot levels and height staking (OFPPT M07 p.92, ex. 4.1, exam Q5)") {
+        near(SpotLevels.compute(SpotLevels.lineOfSight(1120.0, 1.60), listOf(SpotLevelInput("B", null, 1121.0)))[0].readingForDesign!!, 0.60, 1e-9, "p92")
+        val ex = SpotLevels.compute(120.0 + 1.50, listOf(SpotLevelInput("1", null, 119.50), SpotLevelInput("2", null, 118.80), SpotLevelInput("3", null, 120.50)))
+        near(ex[0].readingForDesign!!, 2.00, 1e-9, "ex1"); near(ex[1].readingForDesign!!, 2.70, 1e-9, "ex2"); near(ex[2].readingForDesign!!, 1.00, 1e-9, "ex3")
+        val q5 = SpotLevels.compute(SpotLevels.lineOfSight(20.153, 1.845), listOf(SpotLevelInput("P1", 2.409, 19.0), SpotLevelInput("P2", 3.614, null), SpotLevelInput("P3", 0.175, null)))
+        near(q5[0].groundZ!!, 19.589, 1e-9, "P1"); near(q5[1].groundZ!!, 18.384, 1e-9, "P2"); near(q5[2].groundZ!!, 21.823, 1e-9, "P3")
+        near(q5[0].height!!, 0.589, 1e-9, "P1 cut")
+        near(SpotLevels.gradeLevels(100.0, 1.25, listOf(0.0, 25.0))[1], 100.3125, 1e-12, "grade 1.25%")
+    }
+
+    test("Field tools: TP slope, scale, repeated measurements (exam Q2), contour interpolation, baseline offsets") {
+        val s = FieldTools.slope(29.0 - 33.0, kotlin.math.abs(19.0 - 12.0))
+        near(s.ratio, -0.5714285714, 1e-9, "slope"); near(s.percent, -57.14285714, 1e-7, "%")
+        near(FieldTools.scaleFrom(2.5, 25.0), 1000.0, 1e-9, "scale"); near(FieldTools.groundFromPlan(7.4, 500.0), 37.0, 1e-9, "7.4 cm @1/500")
+        val q2 = FieldTools.stats(listOf(128.567, 128.572, 128.563, 128.568, 128.562, 128.575, 128.571, 128.565, 128.569, 128.574))
+        near(q2.mean, 128.5686, 1e-9, "mean"); check(q2.outliers.isEmpty())
+        val withBad = FieldTools.stats(listOf(10.0, 10.01, 9.99, 10.0, 10.01, 9.99, 10.0, 10.0, 10.01, 9.99, 10.30))
+        check(withBad.outliers == listOf(10)) { "outliers ${withBad.outliers}" }
+        near(FieldTools.interpolateZ(150.0, 155.0, 20.0, 8.0), 152.0, 1e-12, "interp")
+        near(FieldTools.distanceForZ(150.0, 155.0, 20.0, 152.0)!!, 8.0, 1e-12, "inverse interp")
+        check(FieldTools.distanceForZ(150.0, 155.0, 20.0, 160.0) == null)
+        val (px, py) = FieldTools.fromBaseline(0.0, 0.0, 10.0, 0.0, 5.0, 2.0)
+        near(px, 5.0, 1e-12, "x right"); near(py, -2.0, 1e-12, "y right")
+        val back = FieldTools.toBaseline(100.0, 200.0, 130.0, 240.0, 112.0, 206.0)
+        val (qx, qy) = FieldTools.fromBaseline(100.0, 200.0, 130.0, 240.0, back.abscissa, back.offset)
+        near(qx, 112.0, 1e-9, "round x"); near(qy, 206.0, 1e-9, "round y")
+    }
+
+    test("OFPPT M07 exam Q4 (CG/CD in grads): means and angles A1B, C1D; typo 8,38 detected") {
+        fun g(v: Double) = v * 0.9
+        fun mean(cg: Double, cd: Double) = TwoFace.horizontal(g(cg), g(cd)).meanDegrees / 0.9
+        val a = mean(104.85, 304.80); val b = mean(228.43, 28.38); val c = mean(313.64, 113.60); val d = mean(66.20, 266.24)
+        near(a, 104.825, 1e-9, "A"); near(b, 228.405, 1e-9, "B"); near(c, 313.620, 1e-9, "C"); near(d, 66.220, 1e-9, "D")
+        near(Angles.normalize360(g(b) - g(a)) / 0.9, 123.580, 1e-9, "A1B")
+        near(Angles.normalize360(g(d) - g(c)) / 0.9, 152.600, 1e-9, "C1D")
+        check(kotlin.math.abs(TwoFace.horizontal(g(228.43), g(8.38)).deltaDegrees / 0.9) > 19.0) { "typo must be detected" }
     }
 
     println("\nVERIFICATION RESULT: $passed test groups passed.")
