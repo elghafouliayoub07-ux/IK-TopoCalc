@@ -1,0 +1,8 @@
+
+com.topocalcbtp.ScreenshotTour:.
+
+Time: 59.277
+
+OK (1 test)
+
+
