@@ -169,9 +169,9 @@ object IkIcons {
 
 // ---------- bottom navigation ----------
 
-private val BubbleRadius = 25.dp
+private val BubbleRadius = 24.dp
 /** Bubble centre, measured from the top of the tab row (the active icon is lifted to this height). */
-private val BubbleCentreY = 10.dp
+private val BubbleCentreY = 8.dp
 
 /**
  * Equal, fixed-width tabs (opening a tab never moves the others). One circular bubble is drawn behind the
@@ -222,9 +222,9 @@ fun IkBottomNav(labels: List<String>, selected: Int, onSelect: (Int) -> Unit) {
                         Icon(
                             IkIcons.Tabs[i], contentDescription = label, tint = iconTint,
                             modifier = Modifier.size(24.dp).graphicsLayer {
-                                val s = 1f + 0.45f * progress
+                                val s = 1f + 0.4f * progress
                                 scaleX = s; scaleY = s
-                                translationY = -14.dp.toPx() * progress
+                                translationY = -16.dp.toPx() * progress
                             }
                         )
                         Text(
