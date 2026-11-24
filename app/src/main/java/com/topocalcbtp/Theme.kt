@@ -4,6 +4,7 @@ package com.topocalcbtp
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,10 +15,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -25,8 +24,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.addPathNodes
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -48,14 +49,17 @@ data class AppColors(
     val fieldText: Color,
     val fieldBorder: Color,
     val fieldFocus: Color,
-    /** Raised box of the active bottom tab and its content (light: navy/white, dark: white/navy). */
+    /** Bottom bar background (light: light grey, dark: dark grey). */
+    val navBar: Color,
+    /** Bubble of the active bottom tab (light: black, dark: white). Also the active label colour. */
     val navBox: Color,
+    /** Icon drawn inside the bubble (light: white, dark: navy). */
     val navContent: Color
 )
 
 val LocalAppColors = staticCompositionLocalOf {
     AppColors(false, Color.White, Brand.Navy, Color(0xFF52606D), Color(0xFF1E7B4F), Color.White, Brand.Ink,
-        Color(0xFFD9E2EC), Brand.Navy, Brand.Navy, Color.White)
+        Color(0xFFD9E2EC), Brand.Navy, Color(0xFFE2E5EA), Color(0xFF111111), Color.White)
 }
 
 private val LightScheme = lightColorScheme(
@@ -88,9 +92,9 @@ private val DarkScheme = darkColorScheme(
 )
 
 private val LightApp = AppColors(false, Color.White, Brand.Navy, Color(0xFF52606D), Color(0xFF1E7B4F), Color.White, Brand.Ink,
-    Color(0xFFD9E2EC), Brand.Navy, Brand.Navy, Color.White)
+    Color(0xFFD9E2EC), Brand.Navy, Color(0xFFE2E5EA), Color(0xFF111111), Color.White)
 private val DarkApp = AppColors(true, Color(0xFF0B1120), Color(0xFF9DB2FF), Color(0xFF9AA6BF), Color(0xFF4FD18B), Color.White, Brand.Ink,
-    Color.White, Brand.Yellow, Color.White, Brand.Navy)
+    Color.White, Brand.Yellow, Color(0xFF2B2F38), Color.White, Brand.Navy)
 
 @Composable
 fun IkTheme(dark: Boolean, content: @Composable () -> Unit) {
@@ -114,11 +118,45 @@ private fun strokeIcon(name: String, width: Float, vararg paths: String): ImageV
         }
     }.build()
 
+private const val TRIBRACH = "M9.5 12.5l-1 2.5h7l-1-2.5"
+private const val TRIPOD = "M9.5 15l-3.5 7M14.5 15l3.5 7M12 15v5.5"
+
+/** Line icon with optional small filled parts (same 24×24 grid and stroke as [strokeIcon]). */
+private fun icon(name: String, width: Float, strokes: List<String>, fills: List<String> = emptyList()): ImageVector =
+    ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f).apply {
+        strokes.forEach {
+            addPath(
+                pathData = addPathNodes(it), fill = null, stroke = SolidColor(Color.Black),
+                strokeLineWidth = width, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round
+            )
+        }
+        fills.forEach { addPath(pathData = addPathNodes(it), fill = SolidColor(Color.Black)) }
+    }.build()
+
 object IkIcons {
-    val Level = strokeIcon("level", 1.8f,
-        "M5,7h10a1,1 0 0 1 1,1v3a1,1 0 0 1 -1,1h-10a1,1 0 0 1 -1,-1v-3a1,1 0 0 1 1,-1z",
-        "M16 9.5h4M10 12v3M6 21l4-6 4 6M10 15v6")
-    val Theodolite = strokeIcon("theodolite", 1.8f, circle(12f, 7f, 4f), "M12 3v8M8 7h8M12 11v3M7 22l5-8 5 8M12 14v8")
+    /**
+     * Automatic level: horizontal telescope (objective block at the front, eyepiece at the back) with a
+     * small sight/vial on top, a single centre column on a base plate, and a tripod.
+     */
+    /** Automatic level: telescope body with sight on top, objective hood at the front, eyepiece at the back, on a tripod. */
+    val Level = icon("level", 1.8f,
+        strokes = listOf(
+            "M5.5 8h10.5v4.5h-10.5a1.5 1.5 0 0 1-1.5-1.5v-1.5a1.5 1.5 0 0 1 1.5-1.5z", // telescope body
+            "M16 6.5h3a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-3z", // objective hood (front)
+            "M4 9.25h-1.5v2h1.5", // eyepiece (back)
+            "M8.5 8V6.25h3.5V8", // sight on top
+            TRIBRACH, TRIPOD
+        ))
+    /** Theodolite: U-shaped alidade (two standards), telescope seen end-on with its objective lens, on a tripod. */
+    val Theodolite = icon("theodolite", 1.8f,
+        strokes = listOf(
+            "M5.5 5.5v7h13v-7", // standards
+            circle(12f, 7f, 3.75f), // telescope
+            "M5.5 7h2.5M16 7h2.5", // trunnion axis
+            TRIBRACH, TRIPOD
+        ),
+        fills = listOf(circle(12f, 7f, 1.25f)) // objective lens
+    )
     val Calc = strokeIcon("calc", 1.8f, "M4 18l5-9 6 5 5-9",
         circle(4f, 18f, 1.6f), circle(9f, 9f, 1.6f), circle(15f, 14f, 1.6f), circle(20f, 5f, 1.6f))
     val Coord = strokeIcon("coord", 1.8f, circle(12f, 12f, 9f), "M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18")
@@ -131,49 +169,48 @@ object IkIcons {
 
 // ---------- bottom navigation ----------
 
+private val BubbleRadius = 25.dp
+/** Bubble centre, measured from the top of the tab row (the active icon is lifted to this height). */
+private val BubbleCentreY = 10.dp
+
 /**
- * Equal, fixed-width tabs (opening a tab never moves the others). The active tab gets a raised box with
- * rounded top corners drawn behind it, its icon zooms in; only drawing and graphics-layer properties are
- * animated, so nothing is re-measured and the bar does not shake.
+ * Equal, fixed-width tabs (opening a tab never moves the others). One circular bubble is drawn behind the
+ * row and slides from the old tab to the new one (a spring on a single float, drawn at its position, so
+ * nothing is re-measured). The active icon zooms and lifts into the bubble. RTL: tab 0 is on the right.
  */
 @Composable
 fun IkBottomNav(labels: List<String>, selected: Int, onSelect: (Int) -> Unit) {
     val c = LocalAppColors.current
-    val barColor = MaterialTheme.colorScheme.surfaceContainer
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val barColor = c.navBar
+    val count = labels.size
+    val bubblePos by animateFloatAsState(
+        targetValue = selected.toFloat(),
+        animationSpec = spring(dampingRatio = 0.72f, stiffness = 380f), // slight overshoot: feels like a bubble
+        label = "bubblePos"
+    )
     Column(Modifier.fillMaxWidth().background(barColor)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
         Row(
-            Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 6.dp).height(62.dp),
+            Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 6.dp).height(62.dp)
+                .drawBehind {
+                    // centre of tab index p (fractional while the bubble is sliding)
+                    val frac = (bubblePos + 0.5f) / count
+                    val x = if (rtl) size.width * (1f - frac) else size.width * frac
+                    drawCircle(color = c.navBox, radius = BubbleRadius.toPx(), center = Offset(x, BubbleCentreY.toPx()))
+                },
             verticalAlignment = Alignment.Bottom
         ) {
             labels.forEachIndexed { i, label ->
                 val progress by animateFloatAsState(
                     if (i == selected) 1f else 0f, animationSpec = tween(320, easing = FastOutSlowInEasing), label = "tab$i"
                 )
-                val tint = lerp(c.muted, c.navContent, progress)
+                val iconTint = lerp(c.muted, c.navContent, progress)
+                val labelTint = lerp(c.muted, c.navBox, progress)
                 Box(
                     Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .drawBehind {
-                            if (progress > 0f) {
-                                val extraTop = 26.dp.toPx()
-                                val side = 5.dp.toPx()
-                                val fullHeight = size.height + extraTop
-                                val h = fullHeight * (0.3f + 0.7f * progress)
-                                val r = 22.dp.toPx()
-                                val path = Path().apply {
-                                    addRoundRect(
-                                        RoundRect(
-                                            left = -side, top = size.height - h, right = size.width + side, bottom = size.height,
-                                            topLeftCornerRadius = CornerRadius(r, r), topRightCornerRadius = CornerRadius(r, r),
-                                            bottomLeftCornerRadius = CornerRadius.Zero, bottomRightCornerRadius = CornerRadius.Zero
-                                        )
-                                    )
-                                }
-                                drawPath(path, c.navBox.copy(alpha = progress))
-                            }
-                        }
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSelect(i) },
                     contentAlignment = Alignment.BottomCenter
                 ) {
@@ -183,21 +220,16 @@ fun IkBottomNav(labels: List<String>, selected: Int, onSelect: (Int) -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
-                            IkIcons.Tabs[i], contentDescription = label, tint = tint,
+                            IkIcons.Tabs[i], contentDescription = label, tint = iconTint,
                             modifier = Modifier.size(24.dp).graphicsLayer {
-                                val s = 1f + 0.6f * progress
+                                val s = 1f + 0.45f * progress
                                 scaleX = s; scaleY = s
                                 translationY = -14.dp.toPx() * progress
                             }
                         )
                         Text(
-                            label, color = tint, fontSize = 11.5.sp, fontWeight = FontWeight.Bold, maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.graphicsLayer {
-                                val s = 1f + 0.08f * progress
-                                scaleX = s; scaleY = s
-                                translationY = -6.dp.toPx() * progress
-                            }
+                            label, color = labelTint, fontSize = 11.5.sp, fontWeight = FontWeight.Bold, maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
